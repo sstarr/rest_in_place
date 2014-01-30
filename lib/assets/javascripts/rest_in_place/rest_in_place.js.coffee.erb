@@ -1,236 +1,218 @@
-# # REST in Place Editor #####################################################
-#
-# This is the main class that manages the manipulation of the DOM and the AJAX
-# requests
-class RestInPlaceEditor
-  constructor : (e) ->
-    @$element = $(e)
-    @initOptions()
-    @bindForm()
-    @createClickHandler()
-    
-    @$element.click(@clickHandler)
-  
-  # ## Public interface functions ############################################
-  
-  # Toggle the element associated with this editor from normal to a form field  
-  activate : ->
-    @oldValue = @$element.html()
-    @$element.trigger('activate.rest-in-place')
-    @$element.addClass('rip-active')
-    @$element.unbind('click', @clickHandler)
-    @activateForm()
-    @$element.trigger('ready.rest-in-place')
-  
-  # Restore the element to its default state
-  abort : ->
-    @$element.trigger('abort.rest-in-place')
-    @$element
-      .html(@oldValue)
-      .removeClass('rip-active')
-      .click(@clickHandler)
-  
-  # Take the changes a user has made and send them to the server.
-  # If the server accepted the request but does not send back a
-  # parseable answer, a second request is initiated to retrieve the updated
-  # value via GET
-  update : ->
-    @$element.trigger('update.rest-in-place')
-    updateRequest = @ajax
-      type : "post"
-      data : @requestData()
-      
-    updateRequest.done (data) =>
-      if data
-        @loadSuccessCallback(data)
-      else
-        @loadViaGET()
-        
-    updateRequest.fail (jqXHR, textStatus) =>
-      if (jqXHR.status == 200 && textStatus == "parsererror")
-        @loadViaGET()
-      else
-        @$element.trigger('failure.rest-in-place')
-        @abort()
-        
-    @$element.html("saving...")
-  
-  loadViaGET : ->
-    showRequest = @ajax()
-    showRequest.done (data) => @loadSuccessCallback(data)
-    showRequest.fail => @$element.trigger('failure.rest-in-place')
-  
-  # ## Implementation Methods
-  #
-  # These are not implemented in RestInPlaceEditor. Instead, different form
-  # types implement this method (and some others). See [Forms](#forms)
-  
-  # Turns the elements HTML into a form. 
-  activateForm : ->
-    alert("The form was not properly initialized. activateForm is unbound")
-  
-  # When the element is active (it is a form), thtis method returns the value
-  # that should be sent to the server.
-  getValue : ->
-    alert("The form was not properly initialized. getValue is unbound")
+var $, ESC_KEY, RestInPlaceEditor;
 
-  # ## Helper Functions ######################################################
+RestInPlaceEditor = (function() {
 
-  # Derives configuration options from different sources:
-  #
-  # 1. Look through the chain of parent elements and search for data attributes
-  # 2. Try to guess the object name based on Rails id naming conventions if
-  #    parents did not explicitly supply something
-  # 3. Take own data attributes, these always override other settings.
-  #
-  # These are the options:
-  #
-  # **data-url / @url**  
-  # Where to send/receive data from
-  #
-  # **data-formtype / @formType**  
-  # Which form extension to use (see [Forms](#forms))
-  #
-  # **data-object / @objectName**  
-  # Rails singular lowercase name of the class of the objects. This is used
-  # to generate requests/parse responses that ActionController can understand.
-  #
-  # **data-attributes / @attributeName**  
-  # Name of the attribute on the object. Combined with the object name to build
-  # query string parameters in the form `object[attribute]`, just as Rails
-  # expects it.
-  initOptions : ->
-    @$element.parents().each (index, parent) =>
-      @url           = @url           || $(parent).attr("data-url")
-      @formType      = @formType      || $(parent).attr("data-formtype")
-      @objectName    = @objectName    || $(parent).attr("data-object")
-      @attributeName = @attributeName || $(parent).attr("data-attribute")
+  function RestInPlaceEditor(e) {
+    this.$element = $(e);
+    this.initOptions();
+    this.bindForm();
+    this.createClickHandler();
+    this.$element.click(this.clickHandler);
+  }
 
-    @$element.parents().each (index, parent) =>
-      @objectName = @objectName || res[1] if res = parent.id.match(/^(\w+)_(\d+)$/i)
+  RestInPlaceEditor.prototype.activate = function() {
+    this.oldValue = this.$element.html();
+    this.$element.trigger('activate.rest-in-place');
+    this.$element.addClass('rip-active');
+    this.$element.unbind('click', this.clickHandler);
+    this.activateForm();
+    return this.$element.trigger('ready.rest-in-place');
+  };
 
-    @url           = @$element.attr("data-url")       || @url      || document.location.pathname
-    @formType      = @$element.attr("data-formtype")  || @formType || "input"
-    @objectName    = @$element.attr("data-object")    || @objectName
-    @attributeName = @$element.attr("data-attribute") || @attributeName
-    
-  # Overwrites formtype specific method implementations during initialization
-  bindForm : ->
-    @activateForm = RestInPlaceEditor.forms[@formType].activateForm
-    @getValue     = RestInPlaceEditor.forms[@formType].getValue
-  
-  # Generate the data that is sent in the POST request
-  requestData : ->
-    data = @getEncodedTokenAuthenticationParams()
-    data["_method"] = 'put'
-    data["#{@objectName}[#{@attributeName}]"] = @getValue()
-    data
-  
-  # Extract CSRF token from metatags
-  getEncodedTokenAuthenticationParams : ->
-    data = {}
-    param = $('meta[name=csrf-param]').attr('content')
-    token = $('meta[name=csrf-token]').attr('content')
-    data[param] = token if param && token 
-    data
+  RestInPlaceEditor.prototype.abort = function() {
+    this.$element.trigger('abort.rest-in-place');
+    return this.$element.html(this.oldValue).removeClass('rip-active').click(this.clickHandler);
+  };
 
-  # A wrapper for jQuery.ajax
-  ajax : (options = {}) ->
-    options.url      = @url
-    options.dataType = "json"
-    $.ajax(options)
+  RestInPlaceEditor.prototype.update = function() {
+    var updateRequest,
+      _this = this;
+    this.$element.trigger('update.rest-in-place');
+    updateRequest = this.ajax({
+      type: "post",
+      data: this.requestData()
+    });
+    updateRequest.done(function(data) {
+      if (data) {
+        return _this.loadSuccessCallback(data);
+      } else {
+        return _this.loadViaGET();
+      }
+    });
+    updateRequest.fail(function(jqXHR, textStatus) {
+      if (jqXHR.status === 200 && textStatus === "parsererror") {
+        return _this.loadViaGET();
+      } else {
+        _this.$element.trigger('failure.rest-in-place');
+        return _this.abort();
+      }
+    });
+    return this.$element.html("saving...");
+  };
 
-  # Extract the actual attribute value from the servers response
-  extractAttributeFromData : (data) ->
-    if @include_root_in_json
-      data[@objectName][@attributeName]
-    else
-      data[@attributeName]      
-  
-  # ## Handlers ##############################################################
-  
-  # Handles the successful response from the server
-  loadSuccessCallback : (data) ->
-    @$element.text(@extractAttributeFromData(data))
-    @$element.click(@clickHandler)
-    @$element.removeClass('rip-active')
-    @$element.trigger('success.rest-in-place', data)
-    
-  
-  # Creates a clickhandler for the current instance of RestInPlaceEditor, that
-  # has its this pointer permanently bound to the editor instance.
-  createClickHandler : ->
-    @clickHandler = (event) => @activate()
+  RestInPlaceEditor.prototype.loadViaGET = function() {
+    var showRequest,
+      _this = this;
+    showRequest = this.ajax();
+    showRequest.done(function(data) {
+      return _this.loadSuccessCallback(data);
+    });
+    return showRequest.fail(function() {
+      return _this.$element.trigger('failure.rest-in-place');
+    });
+  };
 
-# # <a name="forms">Forms</forms>
-#
-# Contains form type implementations. A form type implementation needs to
-# provide two methods, `activateForm` and `getValue`, which are transplanted
-# into the RestInPlaceEditor instance.
-#
-# `activateForm` : Turns the elements HTML into a form.  
-# `getValue` : When the element is active (it is a form), this method returns
-#              the value that should be sent to the server.
-RestInPlaceEditor.forms = 
-  "input" :
-    activateForm : ->
-      value = $.trim(@$element.html())
-      @$element.html("""<form action="javascript:void(0)" style="display:inline;">
-        <input type="text" class="rest-in-place-#{@attributeName}">
-        </form>""")
-      @$element.find('input').val(value)
-      @$element.find('input')[0].select()
-      @$element.find("form").submit =>
-        @update()
-        false
-      @$element.find("input").keyup (e) =>
-        @abort() if e.keyCode == ESC_KEY
-      @$element.find("input").blur => @abort()
-    
-    getValue : ->
-      @$element.find("input").val()
-  
-  "textarea" :
-    activateForm : ->
-      value = $.trim(@$element.html())
-      @$element.html("""<form action="javascript:void(0)" style="display:inline;">
-        <textarea class="rest-in-place-#{@attributeName}"></textarea>
-        </form>""")
-      @$element.find('textarea').val(value)
-      @$element.find('textarea')[0].select()
-      @$element.find("textarea").keyup (e) =>
-        @abort() if e.keyCode == ESC_KEY
-      @$element.find("textarea").blur => @update()
+  RestInPlaceEditor.prototype.activateForm = function() {
+    return alert("The form was not properly initialized. activateForm is unbound");
+  };
 
-    getValue : ->
-      @$element.find("textarea").val()
+  RestInPlaceEditor.prototype.getValue = function() {
+    return alert("The form was not properly initialized. getValue is unbound");
+  };
 
-# ------------------
-#
-# ### Support functionality
+  RestInPlaceEditor.prototype.initOptions = function() {
+    var _this = this;
+    this.$element.parents().each(function(index, parent) {
+      _this.url = _this.url || $(parent).attr("data-url");
+      _this.formType = _this.formType || $(parent).attr("data-formtype");
+      _this.objectName = _this.objectName || $(parent).attr("data-object");
+      return _this.attributeName = _this.attributeName || $(parent).attr("data-attribute");
+    });
+    this.$element.parents().each(function(index, parent) {
+      var res;
+      if (res = parent.id.match(/^(\w+)_(\d+)$/i)) {
+        return _this.objectName = _this.objectName || res[1];
+      }
+    });
+    this.url = this.$element.attr("data-url") || this.url || document.location.pathname;
+    this.formType = this.$element.attr("data-formtype") || this.formType || "input";
+    this.objectName = this.$element.attr("data-object") || this.objectName;
+    return this.attributeName = this.$element.attr("data-attribute") || this.attributeName;
+  };
 
-# Symbolic representation of the ESC Keycode
-ESC_KEY = 27
+  RestInPlaceEditor.prototype.bindForm = function() {
+    this.activateForm = RestInPlaceEditor.forms[this.formType].activateForm;
+    return this.getValue = RestInPlaceEditor.forms[this.formType].getValue;
+  };
 
-# Assign jQuery shortcut
-$ = jQuery
+  RestInPlaceEditor.prototype.requestData = function() {
+    var data;
+    data = this.getEncodedTokenAuthenticationParams();
+    data["_method"] = 'put';
+    data["" + this.objectName + "[" + this.attributeName + "]"] = this.getValue();
+    return data;
+  };
 
-# Detect Rails Settings
-RestInPlaceEditor.prototype.include_root_in_json = "<%= RestInPlace.include_root_in_json? %>" == "true"
+  RestInPlaceEditor.prototype.getEncodedTokenAuthenticationParams = function() {
+    var data, param, token;
+    data = {};
+    param = $('meta[name=csrf-param]').attr('content');
+    token = $('meta[name=csrf-token]').attr('content');
+    if (param && token) {
+      data[param] = token;
+    }
+    return data;
+  };
 
-# Install in global namespace
-window.RestInPlaceEditor = RestInPlaceEditor
+  RestInPlaceEditor.prototype.ajax = function(options) {
+    if (options == null) {
+      options = {};
+    }
+    options.url = this.url;
+    options.dataType = "json";
+    return $.ajax(options);
+  };
 
-# Create jQuery function
-# Use this to setup REST in Place functionality for elements of your page,
-# for example:
-#
-#     jQuery(".rest-in-place").restInPlace();
-$.fn.restInPlace = ->
-  @each ->
-    $(this).data('restInPlaceEditor', new RestInPlaceEditor(this))
-  return this
+  RestInPlaceEditor.prototype.extractAttributeFromData = function(data) {
+    if (this.include_root_in_json) {
+      return data[this.objectName][this.attributeName];
+    } else {
+      return data[this.attributeName];
+    }
+  };
 
+  RestInPlaceEditor.prototype.loadSuccessCallback = function(data) {
+    this.$element.text(this.extractAttributeFromData(data));
+    this.$element.click(this.clickHandler);
+    this.$element.removeClass('rip-active');
+    return this.$element.trigger('success.rest-in-place', data);
+  };
 
-# Run automatically
-$ -> $('.rest-in-place').restInPlace()
+  RestInPlaceEditor.prototype.createClickHandler = function() {
+    var _this = this;
+    return this.clickHandler = function(event) {
+      return _this.activate();
+    };
+  };
+
+  return RestInPlaceEditor;
+
+})();
+
+RestInPlaceEditor.forms = {
+  "input": {
+    activateForm: function() {
+      var value,
+        _this = this;
+      value = $.trim(this.$element.html());
+      this.$element.html("<form action=\"javascript:void(0)\" style=\"display:inline;\">\n<input type=\"text\" class=\"rest-in-place-" + this.attributeName + "\">\n</form>");
+      this.$element.find('input').val(value);
+      this.$element.find('input')[0].select();
+      this.$element.find("form").submit(function() {
+        _this.update();
+        return false;
+      });
+      this.$element.find("input").keyup(function(e) {
+        if (e.keyCode === ESC_KEY) {
+          return _this.abort();
+        }
+      });
+      return this.$element.find("input").blur(function() {
+        return _this.abort();
+      });
+    },
+    getValue: function() {
+      return this.$element.find("input").val();
+    }
+  },
+  "textarea": {
+    activateForm: function() {
+      var value,
+        _this = this;
+      value = $.trim(this.$element.html());
+      this.$element.html("<form action=\"javascript:void(0)\" style=\"display:inline;\">\n<textarea class=\"rest-in-place-" + this.attributeName + "\"></textarea>\n</form>");
+      this.$element.find('textarea').val(value);
+      this.$element.find('textarea')[0].select();
+      this.$element.find("textarea").keyup(function(e) {
+        if (e.keyCode === ESC_KEY) {
+          return _this.abort();
+        }
+      });
+      return this.$element.find("textarea").blur(function() {
+        return _this.update();
+      });
+    },
+    getValue: function() {
+      return this.$element.find("textarea").val();
+    }
+  }
+};
+
+ESC_KEY = 27;
+
+$ = jQuery;
+
+RestInPlaceEditor.prototype.include_root_in_json = "<%= RestInPlace.include_root_in_json? %>" === "true";
+
+window.RestInPlaceEditor = RestInPlaceEditor;
+
+$.fn.restInPlace = function() {
+  this.each(function() {
+    return $(this).data('restInPlaceEditor', new RestInPlaceEditor(this));
+  });
+  return this;
+};
+
+$(function() {
+  return $('.rest-in-place').restInPlace();
+});
